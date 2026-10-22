@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Tenant {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String    @db.VarChar(255)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  messages  Message[]
+
+  @@map("tenants")
+}
+
+model Message {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  conversationId  String         @map("conversation_id") @db.VarChar(128)
+  to              String         @db.VarChar(32)
+  text            String         @db.VarChar(4096)
+  status          MessageStatus  @default(QUEUED)
+  statusUpdatedAt DateTime       @default(now()) @map("status_updated_at") @db.Timestamptz(3)
+  sentAt          DateTime?      @map("sent_at") @db.Timestamptz(3)
+  deliveredAt     DateTime?      @map("delivered_at") @db.Timestamptz(3)
+  readAt          DateTime?      @map("read_at") @db.Timestamptz(3)
+  failedAt        DateTime?      @map("failed_at") @db.Timestamptz(3)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  webhookEvents   WebhookEvent[]
+
+  @@index([tenantId, conversationId, createdAt, id], map: "messages_tenant_conversation_cursor_idx")
+  @@index([tenantId, id], map: "messages_tenant_id_idx")
+  @@map("messages")
+}
+
+model WebhookEvent {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId    String        @unique @map("event_id") @db.VarChar(128)
+  messageId  String        @map("message_id") @db.Uuid
+  status     MessageStatus
+  occurredAt DateTime      @map("occurred_at") @db.Timestamptz(3)
+  applied    Boolean       @default(false)
+  reason     String?       @db.VarChar(255)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  message    Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, createdAt], map: "webhook_events_message_created_idx")
+  @@map("webhook_events")
+}

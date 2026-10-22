@@ -1,0 +1,102 @@
+{
+  "info": {
+    "name": "Multi-Tenant Messaging API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "tenantId", "value": "" },
+    { "key": "messageId", "value": "" },
+    { "key": "conversationId", "value": "conv-100" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "Create Tenant",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) {",
+              "  pm.collectionVariables.set('tenantId', json.data.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Tenant A\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/tenants"
+      }
+    },
+    {
+      "name": "Create Message",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) {",
+              "  pm.collectionVariables.set('messageId', json.data.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-tenant-id", "value": "{{tenantId}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"conversationId\": \"{{conversationId}}\",\n  \"to\": \"+919876543210\",\n  \"text\": \"Your Order has shipped\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/messages"
+      }
+    },
+    {
+      "name": "Get Message",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-tenant-id", "value": "{{tenantId}}" }],
+        "url": "{{baseUrl}}/api/v1/messages/{{messageId}}"
+      }
+    },
+    {
+      "name": "List Conversation Messages",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-tenant-id", "value": "{{tenantId}}" }],
+        "url": "{{baseUrl}}/api/v1/conversations/{{conversationId}}/messages?limit=20"
+      }
+    },
+    {
+      "name": "Provider Webhook",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"eventId\": \"evt-001\",\n  \"messageId\": \"{{messageId}}\",\n  \"status\": \"DELIVERED\",\n  \"occurredAt\": \"2026-10-16T08:30:00.000Z\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/webhooks/provider"
+      }
+    }
+  ]
+}

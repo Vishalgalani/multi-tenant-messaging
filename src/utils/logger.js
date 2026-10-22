@@ -1,0 +1,33 @@
+import pino from 'pino';
+import { env } from '../config/env.js';
+
+export const logger = pino({
+  level: env.LOG_LEVEL,
+  base: {
+    service: 'multi-tenant-messaging',
+    env: env.NODE_ENV,
+  },
+  redact: {
+    paths: [
+      'req.headers.authorization',
+      'req.headers["x-webhook-secret"]',
+      'password',
+      'text',
+      'body.text',
+      'req.body.text',
+    ],
+    censor: '[REDACTED]',
+  },
+  transport:
+    env.NODE_ENV === 'development'
+      ? {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            singleLine: true,
+            translateTime: 'SYS:standard',
+          },
+        }
+      : undefined,
+});
+
